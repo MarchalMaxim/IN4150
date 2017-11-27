@@ -15,7 +15,7 @@ public class Exercise1Test {
 	
 	@BeforeClass
 	public static void setUpClass() {
-
+			
 	}
 	
 	@AfterClass

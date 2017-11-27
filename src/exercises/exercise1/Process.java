@@ -80,7 +80,7 @@ public class Process extends UnicastRemoteObject implements ProcessRMI {
 	private void broadcast(MessageRMI message) {
 		System.out.println("[" + this.id + "] Broadcast message");
 		
-		// Add meesage to queue
+		// Add mesage to queue
 		this.messageQueue.add(message);
 		
 		// Send message to all processes
