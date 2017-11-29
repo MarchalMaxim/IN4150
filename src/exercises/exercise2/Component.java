@@ -1,117 +1,166 @@
 package exercises.exercise2;
 import java.rmi.*;
-import java.util.*;
+import java.rmi.server.UnicastRemoteObject;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import exercises.exercise1.MessageRMI;
-import exercises.exercise1.MessageType;
-
+import exercises.exercise1.*;
+import java.util.Queue;
+import java.util.HashMap;
 import java.util.LinkedList;
-public class Exercise2 {
-		// Registry URL
-		public static final String HOST = "localhost";
-		public static final Integer PORT = 1099;
-		
-		public static void main(String args[]) {
-			// Create and install a security manager
-			System.setProperty("java.security.policy", "./my.policy");
-			if(args.length==0) {
-				args = new String[]{"5"};
-			}
-			int numComponents = Integer.parseInt(args[0]);
-			if (System.getSecurityManager() == null) {
-				System.setSecurityManager(new RMISecurityManager());
-			}
-			
-			// Make a registry so components can communicate
-			Registry reg;
-			try {
-				reg = LocateRegistry.createRegistry(PORT);
-			}catch(Exception e) {
-				// If we can not make a registry, something is wrong and we should exit
-				Logger.getLogger(Exercise2.class.getName()).log(Level.SEVERE, null, e);
-				return;
-			}
-			
-			// Make some components
-			// and declare the components in the registry
-			Component[] ComponentList = new Component[numComponents];
-			for(int i = 0; i<numComponents; i++) {
-				try {
-					ComponentList[i] = new Component(HOST, PORT, i, numComponents);
-					reg.bind("Component-"+i, ComponentList[i]);
-				}catch(Exception e) {
-					e.printStackTrace();
-				}
-			}
-			
-			
-		// Test a component by running it in a thread
-		// Pass an anonymous function to it that lets the first component run a global state record
-			/** TODO
-			 * Make multiple threads and make the components send messages at random time intervals
-			 */
-		Thread thread = new Thread( () -> {
-			try {
-				ComponentList[0].recordGlobalState();
-			}catch(Exception e) {
-				System.out.println(e);
-			}
+import java.util.Map;
+public class Component extends UnicastRemoteObject implements ComponentRMI {
+	
+	// Save the state of the a channel in a list. There's a list for every channel	
+	private LinkedList<MessageRMI>[] channels;
+	private Integer numMarkers;
+	
+	// Every component is aware of how many components there are in the network
+	private Integer numComponents;
+	
+	// We define the state of the component as all the messages it has received
+	// TODO: maybe define something else as the state of a component
+	private Queue<MessageRMI> state;
+	
+	// Every component has a unique id
+	private int id;
+	
+	// The boolean participated is meant to signify whether the component has participated in a global state recording
+	public boolean participated;
+	
+	// The registry of RMI objects that the components can access
+	private Registry registry;
+	
+	private LinkedList<MessageRMI>[] recorded;
+	
+	public Component(String host, int port, int id, int numComponents)throws RemoteException {
+		super(port);
+		recorded = new LinkedList[numComponents];
+		channels = new LinkedList[numComponents];
+		this.id = id;
+		for(int i = 0; i<numComponents; i++) {
+			channels[i] = new LinkedList<MessageRMI>();
+			recorded[i] = new LinkedList<MessageRMI>();
 		}
-				);
-		thread.start();
+		this.participated = false;
+		this.state = new LinkedList<MessageRMI>();
+		this.registry = LocateRegistry.getRegistry(host, port);
+		if(this.registry == null) {
+			throw new RemoteException();
+		}
+		this.numComponents = numComponents;
+		this.numMarkers = 0;
+		
+	}
+	
+	@Override 
+	public void printId()throws RemoteException {
+		System.out.println("printId() : "+this.id);
+	}
+	
+	public void broadcast(MessageRMI message)throws NotBoundException, RemoteException {
+		// Broadcast a message to all components
+		String[] componentNames = registry.list();
+		System.out.println("Component "+id+" broadcasting marker");
+		for(int i = 0; i<numComponents; i++) {
+			if(i==id) {
+				continue;
+			}
+			ComponentRMI comp = (ComponentRMI) this.registry.lookup(componentNames[i]);
+			comp.onReceive(message);
+		}
+	}
+	
+	public void recordGlobalState() throws RemoteException, NotBoundException{
+		// Method that initializes a global state recording
+		this.participated = true;
+		MessageRMI marker;
+		this.recordLocalState();
+		// Broadcast a marker
+		try {
+			marker = new Message(this.id, MessageType.MARKER);
+		}catch(RemoteException e) {
+			System.out.println(e);
+			this.participated = false;
+			return;
+		}
+		broadcast(marker);		
+	}
+	
+	public void recordLocalState() {
+		// Copies the state of the component into the recorded variable
+		// Sets the participated variable equal to true (as is shown in the lecture notes of
+		// the Chandy-Lamport algorithm)
+		for(MessageRMI mes: state) {
+			recorded[id].add(mes);
+		}
+		participated = true;
+	}
+	
+	public LinkedList<MessageRMI>[] presentRecord() throws Exception{
+		boolean ready = (numMarkers == (numComponents-1));
+		if(false==ready) {
+			throw new Exception("Error, not ready because not all markers have been returned");
+		}else {
+			LinkedList<MessageRMI>[] toReturn = channels;
+			return toReturn;
+		}
+	}
+	@Override
+	public void debugPrint() {
+		System.out.println("Remote method call successful");
+	}
+	@Override
+	public void onReceive(MessageRMI message) throws RemoteException{
+		// Create a marker
+		MessageType type;
 		try{
-			thread.join();
+			type = message.getType();
 		}catch(Exception e) {
-			e.printStackTrace();
+			System.out.println("Could not extract type");
+			throw e;
 		}
+		state.add(message);
 		
-		// Extract the channel record from the 
-		Map<String, LinkedList<MessageRMI>> globalChannels = new HashMap<String, LinkedList<MessageRMI>>();
-		Map<String, LinkedList<MessageRMI>> globalComponents = new HashMap<String, LinkedList<MessageRMI>>();
-		while(globalComponents.size() == 0) {
-			try{
-				LinkedList<MessageRMI>[] tmpList = ComponentList[0].presentRecord();
-				String tmpKey;
-				LinkedList<MessageRMI> tmpValue;
-				for(int i = 0; i<tmpList.length; i++) {
-					if(i==0) {
-						tmpKey = Integer.toString(i);
-						tmpValue = tmpList[i];
-						globalComponents.put(tmpKey, tmpValue);
-					}
-					tmpKey = "0-"+i;
-					tmpValue = tmpList[i];
-					globalChannels.put(tmpKey, tmpValue);
-				}
+		// React to a received message
+		if(type==null) {
+			System.out.println("type is null!");
+		}
+		switch(type) {
+		case ACK:
+			System.out.println("Received message of type ACK");
+			break;
+		case MESSAGE:
+			try {
+				int markerOrigin = message.getOrigin();
+				this.channels[markerOrigin].add(message); // Adds message to the buffer
 			}catch(Exception e) {
-				System.out.println("Global record not ready yet!");
+				throw e;
 			}
-		}
-		printState(globalChannels);
-		
-	}
-		
-	public static void printState(Map<String, LinkedList<MessageRMI>> state) {
-		/** Prints the contents of a recording.
-		 * The recording is stored in a Map that maps a channel name to a linkedList of messages
-		 */
-		for(Map.Entry<String, LinkedList<MessageRMI>> entry: state.entrySet()) {
-			Iterator<MessageRMI> it = entry.getValue().iterator();
-			System.out.println("Printing contents of key "+entry.getKey());
-			while(it.hasNext()) {
+			break;
+		case MARKER:
+			numMarkers++;
+			System.out.println("Component "+id+" received a marker");
+			if(true == participated) {
 				try{
-					Message mess = (Message)it.next();
-					System.out.println("Type: "+mess.getType());
-					System.out.println("Content: "+mess.getContent());
+					int markerOrigin = message.getOrigin();
+					channels[markerOrigin].add(message);
 				}catch(Exception e) {
-					System.out.println();
+					System.out.println(e.getMessage()); 
+				}				
+			}else {
+				try{
+					int markerOrigin = message.getOrigin();
+					this.channels[markerOrigin] = new LinkedList<MessageRMI>();
+					participated = true;
+					MessageRMI marker = new Message(this.id, MessageType.MARKER);
+					broadcast(marker);
+				}catch(Exception e) {
+					System.out.println(e.getMessage());
 				}
+				
 			}
-		}
+			break;
 		}
 	}
-
+}
