@@ -1,0 +1,3 @@
+[0] Broadcast message
+[0] Message delivered
+[0] Broadcast ACK
