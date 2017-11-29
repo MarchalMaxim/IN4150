@@ -25,3 +25,6 @@ hs_err_pid*
 /nbproject/
 build.xml
 /.metadata/
+/build/
+.classpath
+.project

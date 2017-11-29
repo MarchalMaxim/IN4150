@@ -4,8 +4,10 @@ import java.rmi.*;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,25 +19,47 @@ public class Process extends UnicastRemoteObject implements ProcessRMI {
 	
 	private final Registry registry;
 	
-	public Integer time;
+	// Scalar clock
+	private Integer time;
 	
-	public Queue<MessageRMI> messageQueue;
+	// Queue of messages received but not delivered
+	private final PriorityQueue<MessageRMI> messageQueue;
 	
-	public LinkedList<MessageRMI> ackList;
+	// Counter for the number of ACKS received for each message
+	private final Map<Integer, CountDownLatch> ackList;
 	
 	public Process(String host, Integer port, Integer id, Integer totalProcesses) throws RemoteException {
 		this.id = id;
 		this.totalProcesses = totalProcesses;
 		this.registry = LocateRegistry.getRegistry(host, port);
 		this.time = 1;
-		this.messageQueue = new LinkedList<>();
-		this.ackList = new LinkedList<>();
+		this.messageQueue = new PriorityQueue<>(100, (MessageRMI messageA, MessageRMI messageB) -> {
+			try {
+				if (messageA.getTime() < messageB.getTime()) {
+					return -1;
+				} else {
+					return 1;
+				}
+			} catch (RemoteException ex) {
+				Logger.getLogger(Process.class.getName()).log(Level.SEVERE, null, ex);
+			}
+			return 1;			
+		});
+		this.ackList = new HashMap<>();
+	}
+	
+	public Integer getId() {
+		return this.id;
+	}
+	
+	public Integer getTime() {
+		return this.time;
 	}
 	
 	@Override
 	public void onReceived(MessageRMI message) throws RemoteException {
 		switch (message.getType()) {
-			case MESSAGE:				
+			case MESSAGE:
 				// Do something with MESSAGE
 				this.time++;
 				this.time = Math.max(this.time, message.getTime());
@@ -45,7 +69,7 @@ public class Process extends UnicastRemoteObject implements ProcessRMI {
 				// Send ACK to all proccesses
 				for (int i = 0; i < this.totalProcesses; i++) {
 					try {
-						MessageRMI ackMessage = new Message(this.id, MessageType.ACK, this.time);
+						MessageRMI ackMessage = new Message(this.id, MessageType.ACK, this.time, message.getContent(), message);
 						ProcessRMI process = (ProcessRMI) this.registry.lookup("Process-" + i);
 						process.onReceived(ackMessage);
 					} catch (NotBoundException ex) {
@@ -54,22 +78,15 @@ public class Process extends UnicastRemoteObject implements ProcessRMI {
 				}
 				break;
 			case ACK:
-				if (message.getOrigin().equals(this.id)) break;
+				// Ignore ACKs for other processes
+				if (!message.getOriginalMessage().getOrigin().equals(this.id)) break;
 				
 				// Do something with ACK
 				this.time = Math.max(this.time, message.getTime());
 				
-				// Add ACK to list
-				this.ackList.add(message);
-				
-				// All processes have sent an ACK
-				//System.out.println(this.ackList.size());
-				//System.out.println(this.totalProcesses);
-				if (this.ackList.size() == (this.totalProcesses - 1)) {
-					this.ackList.clear();
-					this.messageQueue.remove();
-					System.out.println("Done!");
-				}
+				// Add ACK
+				CountDownLatch counter = this.ackList.get(message.getOriginalMessage().hashCode());
+				counter.countDown();
 				
 				break;
 			default:
@@ -78,31 +95,52 @@ public class Process extends UnicastRemoteObject implements ProcessRMI {
 	}
 	
 	private void broadcast(MessageRMI message) {
-		System.out.println("[" + this.id + "] Broadcast message");
-		
-		// Add mesage to queue
+		// Add mesage to the queue
 		this.messageQueue.add(message);
 		
-		// Send message to all processes
+		// Initialize count down latch
+		this.ackList.put(message.hashCode(), new CountDownLatch(this.totalProcesses - 1));
+		
+		System.out.println("[" + this.id + "] Broadcast message");
+		
+		// Send message to all processes (except self)
 		for (int i = 0; i < this.totalProcesses; i++) {
+			// Dont send message to self
 			if (i == this.id) continue;
 			
-			try {
-				ProcessRMI process = (ProcessRMI) this.registry.lookup("Process-" + i);
-				process.onReceived(message);
-			} catch (NotBoundException | RemoteException ex) {
-				Logger.getLogger(Process.class.getName()).log(Level.SEVERE, null, ex);
-			}
+			final int aux = i;
+			new Thread(() -> {
+				try {
+					ProcessRMI process = (ProcessRMI) this.registry.lookup("Process-" + aux);
+					process.onReceived(message);
+				} catch (NotBoundException | RemoteException ex) {
+					Logger.getLogger(Process.class.getName()).log(Level.SEVERE, null, ex);
+				}
+			}).start();
 		}
+		
+		// Wait for all ACKs
+		CountDownLatch counter = this.ackList.get(message.hashCode());
+		try {
+			counter.await();
+		} catch (InterruptedException ex) {
+			Logger.getLogger(Process.class.getName()).log(Level.SEVERE, null, ex);
+		}
+		
+		// If we get here: all processes have sent an ACK
+		
+		// Remove mesage from the queue
+		this.messageQueue.poll();
+		
+		// Clear acknowledgements
+		this.ackList.remove(message.hashCode());
+		
+		System.out.println("[" + this.id + "] Message delivered");
 	}
 	
-	public void run() throws RemoteException {
-		System.out.println("PROCESS " + this.id + " RUNNING");
-		
-		// Send a message
+	public void broadcastMessage() throws RemoteException {
 		MessageRMI message = new Message(this.id, MessageType.MESSAGE, this.time);
 		this.broadcast(message);
-		
 	}
 	
 }

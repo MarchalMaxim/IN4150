@@ -8,9 +8,13 @@ import java.util.logging.Logger;
 
 public class Exercise1 {
 
+	// TODO: be able to execute different processes
+	
 	// Registry URL
 	public static final String HOST = "localhost";
 	public static final Integer PORT = 1099;
+	
+	public static final int NUM_PROCESSES = 3;
 	
 	public static void main(String[] args) throws InterruptedException {
 		System.setProperty("java.security.policy", "./my.policy");
@@ -30,7 +34,7 @@ public class Exercise1 {
 		}
 		
 		// Create N processes
-		final int n = 2;
+		final int n = NUM_PROCESSES;
 		Process[] processList = new Process[n];
 		for (int i = 0; i < n; i++) {
 			try {
@@ -40,21 +44,30 @@ public class Exercise1 {
 				Logger.getLogger(Exercise1.class.getName()).log(Level.SEVERE, null, ex);
 			}
 		}
-	
 		
 		// Run each proccess
+		Thread[] threads = new Thread[n];
 		for (int i = 0; i < n; i++) {
 			final Process process = processList[i];
-			Thread thread = new Thread(() -> {
+			threads[i] = new Thread(() -> {
 				try {
-					process.run();
+					System.out.println("PROCESS " + process.getId() + " RUNNING");
+					process.broadcastMessage();
 					
 				} catch (RemoteException ex) {
 					Logger.getLogger(Exercise1.class.getName()).log(Level.SEVERE, null, ex);
 				}
 			});
-			thread.start();
-			thread.join();
+			threads[i].start();
+		}
+		
+		// Wait for all threads
+		for (int i = 0; i < n; i++) {
+			try {
+				threads[i].join();
+			} catch (InterruptedException ex) {
+				Logger.getLogger(Exercise1.class.getName()).log(Level.SEVERE, null, ex);
+			}
 		}
 	}
 	

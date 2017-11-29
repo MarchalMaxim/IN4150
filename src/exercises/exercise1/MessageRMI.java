@@ -11,4 +11,8 @@ public interface MessageRMI extends Remote {
 	
 	public Integer getTime() throws RemoteException;
 	
+	public Integer getContent() throws RemoteException;
+	
+	public MessageRMI getOriginalMessage() throws RemoteException;
+			
 }
