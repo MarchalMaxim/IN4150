@@ -1,16 +1,25 @@
 package exercises.exercise1;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.rmi.AccessException;
 import java.rmi.AlreadyBoundException;
+import java.rmi.NotBoundException;
 import java.rmi.RMISecurityManager;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import org.junit.BeforeClass;
 
 public class Exercise1Test {
 	
@@ -18,12 +27,12 @@ public class Exercise1Test {
 	private static final String HOST = "localhost";
 	private static final Integer PORT = 1099;
 	
-	private Registry reg;
+	private static Registry reg;
 	
 	private Process[] processList;
 	
-	@Before
-	public void setUp() throws InterruptedException {
+	@BeforeClass
+	public static void setupClass() throws InterruptedException {
 		System.setProperty("java.security.policy", "./my.policy");
 		
 		// Create and install a security manager
@@ -33,25 +42,27 @@ public class Exercise1Test {
 		
 		// Start a registry
 		try {
-			this.reg = LocateRegistry.createRegistry(PORT);
+			reg = LocateRegistry.createRegistry(PORT);
 		} catch (RemoteException ex) {
 			Logger.getLogger(Exercise1.class.getName()).log(Level.SEVERE, null, ex);
 		}
 	}
 	
-	@After
-	public void tearDown() {
-		// Nothing
-	}
-
-	private void createProcesses(int num) {
+	private void registerProcesses(int num) {
 		// Create N processes
 		final int n = num;
 		this.processList = new Process[n];
 		for (int i = 0; i < n; i++) {
 			try {
+				// Unbind any current process
+				try {
+					reg.unbind("Process-" + i);
+				} catch (NotBoundException | AccessException ex) {
+					// Do nothing
+				}
+				// Bind to registry
 				processList[i] = new Process(HOST, PORT, i, n);
-				this.reg.bind("Process-" + i, processList[i]);
+				reg.bind("Process-" + i, processList[i]);
 			} catch (RemoteException | AlreadyBoundException ex) {
 				Logger.getLogger(Exercise1.class.getName()).log(Level.SEVERE, null, ex);
 			}
@@ -60,11 +71,11 @@ public class Exercise1Test {
 	
 	@Test
 	public void testProcesses() {
-		// Init num
+		// Init num processes
 		int n = 5;
 		
-		// Create process
-		this.createProcesses(n);
+		// Register process
+		this.registerProcesses(n);
 		
 		// Run each proccess
 		Thread[] threads = new Thread[n];
@@ -118,10 +129,74 @@ public class Exercise1Test {
 	}
 	
 	@Test
-	public void testProcessesFile() {
+	public void testProcessesFile() throws FileNotFoundException, IOException {
+		// Init num processes
+		int n = 2;
 		
-		// TODO: make tests with a file for each process
+		// Register process
+		this.registerProcesses(n);
 		
+		// Redirect output to baos
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		PrintStream ps = new PrintStream(baos);
+		PrintStream old = System.out;
+		System.setOut(ps);
+		
+		// Run each proccess
+		Thread[] threads = new Thread[n];
+		for (int i = 0; i < n; i++) {
+			final Process process = processList[i];
+			final int aux = i;
+			threads[i] = new Thread(() -> {
+				try {				
+					switch (aux) {
+						case 0:
+							process.broadcastMessage();
+							break;
+						case 1:
+							Thread.sleep(2000);
+							process.broadcastMessage();
+							break;
+					}
+				} catch (IOException | InterruptedException ex) {
+					Logger.getLogger(Exercise1Test.class.getName()).log(Level.SEVERE, null, ex);
+				}
+			});
+			threads[i].start();
+		}
+		
+		// Wait for all threads
+		for (int i = 0; i < n; i++) {
+			try {
+				threads[i].join();
+			} catch (InterruptedException ex) {
+				Logger.getLogger(Exercise1Test.class.getName()).log(Level.SEVERE, null, ex);
+			}
+		}
+		
+		// Put things back
+		System.out.flush();
+		System.setOut(old);
+		
+		// Check output with file
+		for (int i = 0; i < n; i++) {
+			BufferedReader br = new BufferedReader(new FileReader("test/exercises/exercise1/Exercise1Proc_" + i + ".txt"));
+			String line;
+			List<String> messages = new ArrayList<>();
+			while ((line = br.readLine()) != null) {
+				messages.add(line);
+			}
+			br.close();
+			
+			int indexMessage = 0;
+			String lines[] = baos.toString().split("\\r?\\n");
+			for (String lineMessage : lines) {
+				if (lineMessage.contains("[" + i + "]")) {
+					assertTrue(messages.get(indexMessage).equals(lineMessage));
+					indexMessage++;
+				}
+			}
+		}
 	}
 	
 }

@@ -69,8 +69,12 @@ public class Exercise2 {
 			e.printStackTrace();
 		}
 		
+<<<<<<< HEAD
 		// Extract the channel record from the components
 		// The global state is extracted on the "server side"
+=======
+		// Extract the channel record from the 
+>>>>>>> 799c5d28dbf4e7e4517ad6b503caa4944f6bab7a
 		Map<String, LinkedList<MessageRMI>> globalChannels = new HashMap<String, LinkedList<MessageRMI>>();
 		Map<String, LinkedList<MessageRMI>> globalComponents = new HashMap<String, LinkedList<MessageRMI>>();
 		while(globalComponents.size() == 0) {

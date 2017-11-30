@@ -1,6 +1,7 @@
 package exercises.exercise1;
 
 import java.rmi.Remote;
+import java.rmi.RemoteException;
 
 public interface ProcessRMI extends Remote {
 	
@@ -9,6 +10,6 @@ public interface ProcessRMI extends Remote {
 	 * @param message 
 	 * @throws java.rmi.RemoteException 
 	 */
-	public void onReceived(MessageRMI message) throws java.rmi.RemoteException;
+	public void onReceived(MessageRMI message) throws RemoteException;
 	
 }

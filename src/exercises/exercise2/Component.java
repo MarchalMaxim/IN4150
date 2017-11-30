@@ -27,6 +27,7 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 	// The boolean participated is meant to signify whether the component has participated in a global state recording
 	public boolean participated;
 	
+<<<<<<< HEAD
 	public int messageCount;
 	
 	// The registry of RMI objects that the components can access
@@ -34,10 +35,21 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 		
 	public Component(String host, int port, int id, int numComponents)throws RemoteException {
 		super(port);
+=======
+	// The registry of RMI objects that the components can access
+	private Registry registry;
+	
+	private LinkedList<MessageRMI>[] recorded;
+	
+	public Component(String host, int port, int id, int numComponents)throws RemoteException {
+		super(port);
+		recorded = new LinkedList[numComponents];
+>>>>>>> 799c5d28dbf4e7e4517ad6b503caa4944f6bab7a
 		channels = new LinkedList[numComponents];
 		this.id = id;
 		for(int i = 0; i<numComponents; i++) {
 			channels[i] = new LinkedList<MessageRMI>();
+			recorded[i] = new LinkedList<MessageRMI>();
 		}
 		this.participated = false;
 		this.registry = LocateRegistry.getRegistry(host, port);
@@ -46,7 +58,10 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 		}
 		this.numComponents = numComponents;
 		this.numMarkers = 0;
+<<<<<<< HEAD
 		messageCount = 0;
+=======
+>>>>>>> 799c5d28dbf4e7e4517ad6b503caa4944f6bab7a
 		
 	}
 		
@@ -68,6 +83,27 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 		}
 	}
 	
+<<<<<<< HEAD
+=======
+	@Override 
+	public void printId()throws RemoteException {
+		System.out.println("printId() : "+this.id);
+	}
+	
+	public void broadcast(MessageRMI message)throws NotBoundException, RemoteException {
+		// Broadcast a message to all components
+		String[] componentNames = registry.list();
+		System.out.println("Component "+id+" broadcasting marker");
+		for(int i = 0; i<numComponents; i++) {
+			if(i==id) {
+				continue;
+			}
+			ComponentRMI comp = (ComponentRMI) this.registry.lookup(componentNames[i]);
+			comp.onReceive(message);
+		}
+	}
+	
+>>>>>>> 799c5d28dbf4e7e4517ad6b503caa4944f6bab7a
 	public void recordGlobalState() throws RemoteException, NotBoundException{
 		// Method that initializes a global state recording
 		this.participated = true;
@@ -103,6 +139,7 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 			return toReturn;
 		}
 	}
+<<<<<<< HEAD
 	
 	public void sendNext() {
 		// Send a message to another (semi random) process
@@ -118,11 +155,16 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 		}		
 	}
 	
+=======
+>>>>>>> 799c5d28dbf4e7e4517ad6b503caa4944f6bab7a
 	@Override
 	public void debugPrint() {
 		System.out.println("Remote method call successful");
 	}
+<<<<<<< HEAD
 	
+=======
+>>>>>>> 799c5d28dbf4e7e4517ad6b503caa4944f6bab7a
 	@Override
 	public void onReceive(MessageRMI message) throws RemoteException{
 		// Create a marker
@@ -158,6 +200,7 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 				try{
 					int markerOrigin = message.getOrigin();
 					channels[markerOrigin].add(message);
+<<<<<<< HEAD
 				}catch(Exception e) {
 					System.out.println(e.getMessage()); 
 				}				
@@ -169,6 +212,19 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 					MessageRMI marker = new Message(this.id, MessageType.MARKER);
 					broadcast(marker);
 				}catch(Exception e) {
+=======
+				}catch(Exception e) {
+					System.out.println(e.getMessage()); 
+				}				
+			}else {
+				try{
+					int markerOrigin = message.getOrigin();
+					this.channels[markerOrigin] = new LinkedList<MessageRMI>();
+					participated = true;
+					MessageRMI marker = new Message(this.id, MessageType.MARKER);
+					broadcast(marker);
+				}catch(Exception e) {
+>>>>>>> 799c5d28dbf4e7e4517ad6b503caa4944f6bab7a
 					System.out.println(e.getMessage());
 				}
 				
