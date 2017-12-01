@@ -6,9 +6,8 @@ import java.rmi.registry.Registry;
 
 import exercises.exercise1.*;
 import java.util.Queue;
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
+
 public class Component extends UnicastRemoteObject implements ComponentRMI {
 	
 	// Save the state of the a channel in a list. There's a list for every channel	
@@ -19,10 +18,10 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 	private Integer numComponents;
 	
 	// We define the state of the component as all the messages it has received
-	private Queue<MessageRMI> state = new LinkedList<MessageRMI>();
+	private Queue<MessageRMI> state = new LinkedList<>();
 	
 	// Every component has a unique id
-	private int id;
+	private final int id;
 	
 	// The boolean participated is meant to signify whether the component has participated in a global state recording
 	public boolean participated;
@@ -32,14 +31,14 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 	private boolean recordingDone;
 	
 	// The registry of RMI objects that the components can access
-	private Registry registry;
+	private final Registry registry;
 		
-	public Component(String host, int port, int id, int numComponents)throws RemoteException {
-		super(port);
+	public Component(String host, int port, int id, int numComponents) throws RemoteException {
+		//super(port);
 		channels = new LinkedList[numComponents];
 		this.id = id;
 		for(int i = 0; i<numComponents; i++) {
-			channels[i] = new LinkedList<MessageRMI>();
+			channels[i] = new LinkedList<>();
 		}
 		this.participated = false;
 		this.registry = LocateRegistry.getRegistry(host, port);
@@ -52,7 +51,11 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 		recordingDone = false;
 		
 	}
-		
+	
+	public int getId() {
+		return id;
+	}
+			
 	@Override 
 	public void printId()throws RemoteException {
 		System.out.println("printId() : "+this.id);
@@ -60,13 +63,13 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 	
 	public void broadcast(MessageRMI message)throws NotBoundException, RemoteException {
 		// Broadcast a message to all components
-		String[] componentNames = registry.list();
-		System.out.println("C"+id+" broadcasting "+message.getType());
-		for(int i = 0; i<numComponents; i++) {
+		//String[] componentNames = registry.list();
+		System.out.println("C" + id + " broadcasting "+message.getType());
+		for(int i = 0; i < numComponents; i++) {
 			if(i==id) {
 				continue;
 			}
-			ComponentRMI comp = (ComponentRMI) this.registry.lookup(componentNames[i]);
+			ComponentRMI comp = (ComponentRMI) this.registry.lookup("Component-" + i);
 			comp.onReceive(message);
 		}
 	}
@@ -98,16 +101,16 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 	}
 	
 	public LinkedList<MessageRMI>[] pullResults() throws Exception{
-		if(recordingDone == false) {
+		if (recordingDone == false) {
 			throw new Exception("Please wait, component "+id+" not ready because only "+numMarkers+" markers have been returned");
-		}else {
+		} else {
 			numMarkers = 0;
 			recordingDone = false;
 			LinkedList<MessageRMI>[] toReturn = channels;
 			channels = new LinkedList[numComponents];
-			for(int i = 0; i<numComponents; i++) {
+			for (int i = 0; i < numComponents; i++) {
 				// Reset the channels
-				channels[i] = new LinkedList<MessageRMI>();
+				channels[i] = new LinkedList<>();
 			}
 			return toReturn;
 		}
@@ -185,6 +188,6 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 				participated = false;
 			}
 			break;
-		}
+		} 
 	}
 }
