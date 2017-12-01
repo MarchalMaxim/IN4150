@@ -7,6 +7,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -111,9 +112,13 @@ public class Process extends UnicastRemoteObject implements ProcessRMI {
 			final int aux = i;
 			new Thread(() -> {
 				try {
+					// Random delay
+					int ms = new Random().nextInt((2000 - 500) + 1) + 500;
+					Thread.sleep(ms);
+					
 					ProcessRMI process = (ProcessRMI) this.registry.lookup("Process-" + aux);
 					process.onReceived(message);
-				} catch (NotBoundException | RemoteException ex) {
+				} catch (NotBoundException | RemoteException | InterruptedException ex) {
 					Logger.getLogger(Process.class.getName()).log(Level.SEVERE, null, ex);
 				}
 			}).start();
