@@ -29,6 +29,8 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 	
 	public int messageCount;
 	
+	private boolean recordingDone;
+	
 	// The registry of RMI objects that the components can access
 	private Registry registry;
 		
@@ -47,6 +49,7 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 		this.numComponents = numComponents;
 		this.numMarkers = 0;
 		messageCount = 0;
+		recordingDone = false;
 		
 	}
 		
@@ -94,14 +97,18 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 		participated = true;
 	}
 	
-	public LinkedList<MessageRMI>[] presentRecord() throws Exception{
-		boolean ready = (numMarkers == (numComponents-1));
-		if(false==ready) {
+	public LinkedList<MessageRMI>[] pullResults() throws Exception{
+		if(recordingDone == false) {
 			throw new Exception("Please wait, component "+id+" not ready because only "+numMarkers+" markers have been returned");
 		}else {
+			numMarkers = 0;
+			recordingDone = false;
 			LinkedList<MessageRMI>[] toReturn = channels;
-			numComponents = 0;
 			channels = new LinkedList[numComponents];
+			for(int i = 0; i<numComponents; i++) {
+				// Reset the channels
+				channels[i] = new LinkedList<MessageRMI>();
+			}
 			return toReturn;
 		}
 	}
@@ -140,9 +147,6 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 		}
 		System.out.println("C"+id+" received a "+type+" from C"+message.getOrigin());
 		// React to a received message
-		if(type==null) {
-			System.out.println("type is null!");
-		}
 		switch(type) {
 		case ACK:
 			break;
@@ -159,17 +163,13 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 			break;
 		case MARKER:
 			numMarkers++;
-			if(true == participated) {
-				try{
-					int markerOrigin = message.getOrigin();
-					channels[markerOrigin].add(message);
-				}catch(Exception e) {
-					System.out.println(e.getMessage()); 
-				}	
-			}else {
+			if(false==participated){
+				// Received a marker and not yet participated:
+				// record your local state and broadcast marker
 				try{
 					int markerOrigin = message.getOrigin();
 					this.channels[markerOrigin] = new LinkedList<MessageRMI>();
+					recordLocalState();
 					participated = true;
 					MessageRMI marker = new Message(this.id, MessageType.MARKER);
 					broadcast(marker);
@@ -177,6 +177,12 @@ public class Component extends UnicastRemoteObject implements ComponentRMI {
 					System.out.println(e.getMessage());
 				}
 				
+			}
+			if(numMarkers == numComponents-1) {
+				System.out.println("C"+id+" received all markers, terminating.");
+				recordingDone = true;
+				numMarkers = 0;
+				participated = false;
 			}
 			break;
 		}

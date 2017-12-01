@@ -49,77 +49,74 @@ public class Exercise2 {
 				}
 			}
 			
-		// Test the algorithm by running a pre-fab test case
-		Thread[] threads = new Thread[numComponents];				
-		threads[0] = new Thread (  
-				()-> {
-					try{
-						ComponentList[0].recordGlobalState();
-						long waitTime = (long) new Random().nextDouble()*50;
-						Thread.sleep(waitTime);
-						ComponentList[0].broadcast(new Message(0,MessageType.MESSAGE));
-					}catch(Exception e) {
-						System.out.println(e);
+		Thread[] threads = new Thread[numComponents];
+		for(int i = 1; i<numComponents; i++) {
+			final int j = i;
+			threads[i] = new Thread ( 
+					()-> {
+						try {
+							// +/- 50 ms delay
+							ComponentList[j].broadcast(new Message(j,MessageType.MESSAGE));
+							long waitTime = (long) new Random().nextDouble()*50;
+							Thread.sleep(waitTime);
+							// Broadcast a message
+							ComponentList[j].broadcast(new Message(j, MessageType.MESSAGE));
+						}catch(Exception e) {
+							//
+						}
 					}
-				}
-			);
-		threads[1] = new Thread( 
+					);
+		}
+		threads[0] = new Thread (
 					()->{
-				try{
-					ComponentList[1].broadcast(new Message(1,MessageType.MESSAGE));
-					long waitTime = (long) new Random().nextDouble()*50;
-					Thread.sleep(waitTime);
-					ComponentList[1].sendTo(2);
-				}catch(Exception e) {
-					// 
-				}
+						long waitTime = (long) new Random().nextDouble()*50;
+						try{
+							Thread.sleep(waitTime);
+							ComponentList[0].recordGlobalState();
+						}catch(Exception e) {
+							//
+						}
+						
 					}
 				);
-		threads[2] = new Thread(
-				()-> {
-					try{
-						ComponentList[2].broadcast(new Message(2,MessageType.MESSAGE));
-						long waitTime = (long) new Random().nextDouble()*50;
-						Thread.sleep(waitTime);
-						ComponentList[2].sendTo(1);
-					}catch(Exception e) {
-						//
-					}
-				}
-			);
-		
-		
 		for(int i = 0; i<numComponents; i++) {
 			threads[i].start();
 		}
 		// Extract the channel record from the components
 		// The global state is extracted on the "server side"
-		Map<String, LinkedList<MessageRMI>> globalChannels = new HashMap<String, LinkedList<MessageRMI>>();
-		boolean userNotified = false;
-		for(int j = 0; j<numComponents; j++) {
-			while(globalChannels.size()==0) {
+		Map<String, LinkedList<MessageRMI>> globalChannels[] = (HashMap<String, LinkedList<MessageRMI>>[])new HashMap[numComponents];
+		for(int s =0; s<numComponents; s++) {
+			// Initialize the array of maps
+			globalChannels[s] = new HashMap<String, LinkedList<MessageRMI>>();
+		}
+		// Wait for the threads to finish before pulling results
+		for(Thread t: threads) {
+			try {
+				t.join();
+			} catch (InterruptedException e) {
+			}
+		}
+
+		// Print the recorded channels and states
+		for(int c = 0; c<numComponents; c++) {
+			// Extract the channel information from component c
+			while(true) {	
 				try{
-					LinkedList<MessageRMI>[] tmpList = ComponentList[j].presentRecord();
+					LinkedList<MessageRMI>[] tmpList = ComponentList[c].pullResults();
 					String tmpKey;
 					LinkedList<MessageRMI> tmpValue;
 					for(int i = 0; i<tmpList.length; i++) {
-						tmpKey = j+"-"+i;
+						tmpKey = c+"-"+i;
 						tmpValue = tmpList[i];
-						globalChannels.put(tmpKey, tmpValue);
+						globalChannels[c].put(tmpKey, tmpValue);
 					}
+					printState(globalChannels[c]);
+					break;
 				}catch(Exception e) {
-					if(userNotified==false) {
-						System.out.println(e);
-						userNotified = true;
-					}
+					// Component not done recording yet. Wait
 				}
 			}
-		// Print out the contents of the channel
-		printState(globalChannels);
-		// Reset the channel contents
-		globalChannels = new HashMap<String, LinkedList<MessageRMI>>();
 		}
-		
 	}
 		
 	public static void printState(Map<String, LinkedList<MessageRMI>> state) {
