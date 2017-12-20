@@ -13,25 +13,25 @@ import java.util.logging.Logger;
 /**
  * Class for executing exercise 3.
  */
-public final class Exercise3 {
+public class Exercise3 {
 	
 	// Registry URL
 	public static final String HOST = "localhost";
 	public static final Integer PORT = 1099;
 	
-	public static int numProcesses;
-	public static int procId;
+	public int numProcesses;
+	public int procId;
 	
-	public static Registry reg;
+	public Registry reg;
 		
 	/**
 	 * Constructor.
 	 */
-	private Exercise3() {
+	public Exercise3() {
 		// Do nothing
 	}
 	
-	private static boolean validateParams(String[] args) {
+	private boolean validateParams(String[] args) {
 		// Check num of params
 		switch (args.length) {
 			case 0:
@@ -61,7 +61,7 @@ public final class Exercise3 {
 		return true;
 	}
 	
-	private static void setup() {
+	private void setup() {
 		System.setProperty("java.security.policy", "./my.policy");
 		
 		// Create and install a security manager
@@ -96,7 +96,7 @@ public final class Exercise3 {
 	 * @throws AlreadyBoundException - something went wrong
 	 * @throws InterruptedException - something went wrong
 	 */
-	public static void main(String[] args) throws RemoteException, AlreadyBoundException, InterruptedException {
+	public void execute(String[] args) throws InterruptedException, RemoteException, AlreadyBoundException {
 		// Check params for proc ud
 		if (!validateParams(args)) {
 			System.out.println("Use: Exercise3 [num_of_processes] (index_of_process)");
@@ -127,7 +127,9 @@ public final class Exercise3 {
 		
 		// Run each proccess
 		final Process process;
-		process = new Process(HOST, PORT, procId, numProcesses);
+		if (procId == 2 || procId == 3) process = new CandidateProcess(HOST, PORT, procId, numProcesses);
+		else process = new OrdinaryProcess(HOST, PORT, procId, numProcesses);
+		
 		reg.bind("Process-" + procId, process);
 		Thread thread = new Thread(() -> {
 			try {
@@ -140,11 +142,10 @@ public final class Exercise3 {
 				// Start workload
 				System.out.println("PROCESS " + process.getId() + " RUNNING");
 				
-				if (procId == 2) process.startAsCandidate();
-				else process.startAsOrdinary();
+				process.start();
 				
 				// Reset countdown
-				latch.reset();
+				//latch.reset();
 			} catch (RemoteException | NotBoundException | InterruptedException ex) {
 				Logger.getLogger(Exercise3.class.getName()).log(Level.SEVERE, null, ex);
 			}
@@ -153,6 +154,18 @@ public final class Exercise3 {
 		
 		// Wait for thread
 		thread.join();
+	}
+	
+	/**
+	 * Method to execute the exercise.
+	 * @param args - arguments for the program
+	 * @throws RemoteException - something went wrong
+	 * @throws AlreadyBoundException - something went wrong
+	 * @throws InterruptedException - something went wrong
+	 */
+	public static void main(String[] args) throws RemoteException, AlreadyBoundException, InterruptedException {
+		Exercise3 exercise3 = new Exercise3();
+		exercise3.execute(args);
 	}
 	
 }

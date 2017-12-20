@@ -12,7 +12,8 @@ public interface ProcessRMI extends Remote {
 	 * Event triggers when a message is received.
 	 * @param message 
 	 * @throws java.rmi.RemoteException 
+	 * @throws java.lang.InterruptedException 
 	 */
-	public void onReceived(MessageRMI message) throws RemoteException;
+	public void onReceived(MessageRMI message) throws RemoteException, InterruptedException;
 	
 }
