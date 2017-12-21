@@ -1,9 +1,6 @@
 package exercises.exercise3;
 
-import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Class for ordinary processes.
@@ -31,7 +28,7 @@ public class OrdinaryProcess extends Process {
 	}
 	
 	@Override
-	public synchronized void onReceived(MessageRMI message) throws RemoteException, InterruptedException {
+	public void onReceived(MessageRMI message) throws RemoteException, InterruptedException {
 		// Debug
 		System.out.println("[" + this.id + "] Received a " + message.getType() + " message");
 		
@@ -64,12 +61,7 @@ public class OrdinaryProcess extends Process {
 					newMessage = new Message(this.id, MessageType.KILL, this.level, this.ownerId);
 				}
 				
-				try {
-					ProcessRMI process = (ProcessRMI) this.registry.lookup("Process-" + this.father);
-					process.onReceived(newMessage);
-				} catch (NotBoundException ex) {
-					Logger.getLogger(Process.class.getName()).log(Level.SEVERE, null, ex);
-				}
+				sendMessage(newMessage, this.father);
 				break;
 			default:
 				// (level’,id’) = (level,owner_id
@@ -78,13 +70,8 @@ public class OrdinaryProcess extends Process {
 				this.father = this.potentialFather;
 				
 				// Set ACK to new father
-				try {
-					MessageRMI ackMessage = new Message(this.id, MessageType.ACK, this.level, this.ownerId);
-					ProcessRMI process = (ProcessRMI) this.registry.lookup("Process-" + this.father);
-					process.onReceived(ackMessage);
-				} catch (NotBoundException ex) {
-					Logger.getLogger(Process.class.getName()).log(Level.SEVERE, null, ex);
-				}
+				MessageRMI ackMessage = new Message(this.id, MessageType.ACK, this.level, this.ownerId);
+				sendMessage(ackMessage, this.father);
 				break;
 		}
 	}

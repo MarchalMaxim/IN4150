@@ -6,9 +6,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -27,7 +25,7 @@ public abstract class Process extends UnicastRemoteObject implements ProcessRMI 
 	protected final Registry registry;
 		
 	// Check if we are killed
-	protected Boolean isKilled;
+	protected volatile Boolean isKilled;
 	
 	// Level of the process - number of nodes it has captured
 	protected Integer level;
@@ -107,7 +105,7 @@ public abstract class Process extends UnicastRemoteObject implements ProcessRMI 
 	 */
 	protected Thread sendMessage(MessageRMI message, Integer procId) throws RemoteException {
 		// Send message
-		Thread messageThread = new Thread(() -> {
+		//Thread messageThread = new Thread(() -> {
 			try {
 				// Random delay
 				int ms = new Random().nextInt((2000 - 500) + 1) + 500;
@@ -122,9 +120,9 @@ public abstract class Process extends UnicastRemoteObject implements ProcessRMI 
 			} catch (NotBoundException | RemoteException | InterruptedException ex) {
 				Logger.getLogger(Process.class.getName()).log(Level.SEVERE, null, ex);
 			}
-		});
-		messageThread.start();
-		return messageThread;
+		//});
+		//messageThread.start();
+		return null;
 	}
 	
 	/**

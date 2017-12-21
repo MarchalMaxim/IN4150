@@ -28,7 +28,9 @@ public class CandidateProcess extends Process {
 	public void start() throws RemoteException, InterruptedException {
 		// Go through all untraverse links
 		while (!this.untraversed.isEmpty()) {
-				
+			// Hack
+			if (this.isKilled) break;
+			
 			// Get next random link
 			int nextIndex = (int) (Math.random() * (this.untraversed.size() - 1));
 			Integer link = this.untraversed.get(nextIndex);
@@ -36,36 +38,6 @@ public class CandidateProcess extends Process {
 			// Attemp to capture
 			MessageRMI captureMessage = new Message(this.id, MessageType.CAPTURE, this.level, this.id);
 			this.sendMessage(captureMessage, link);
-			
-			while (true) {
-				// Wait to receive a response
-				MessageRMI message = this.queue.take();
-
-				// Get content
-				Integer newLevel = message.getContentLevel();
-				Integer newId = message.getContentId();
-
-				if (newId.equals(this.id) && !this.isKilled) {
-					// Recieved an ACK message
-					this.level++;
-					this.untraversed.remove(link);
-
-					// Don't receive more message from this link
-					break;
-				} else if (
-						newLevel < this.level
-						|| (newLevel.equals(this.level) && newId <= this.id)
-					) {
-					// Discard message
-				} else {
-					// Send ACK back
-					MessageRMI ackMessage = new Message(this.id, MessageType.ACK, newLevel, newId);
-					this.sendMessage(ackMessage, link);
-
-					// We just got killed
-					this.isKilled = true;
-				}
-			}
 		}
 		
 		// If we are not killed, we are elected
@@ -81,7 +53,34 @@ public class CandidateProcess extends Process {
 		System.out.println("[" + this.id + "] Received a " + message.getType() + " message");
 		
 		// Add to queue
-		this.queue.add(message);
+		//this.queue.add(message);
+		
+		// Get content
+		Integer link = message.getSenderId();
+		Integer newLevel = message.getContentLevel();
+		Integer newId = message.getContentId();
+
+		if (newId.equals(this.id) && !this.isKilled) {
+			// Recieved an ACK message
+			this.level++;
+			this.untraversed.remove(link);
+
+			System.out.println("[" + this.id + "] GOT " + message.getSenderId() + " process");
+			
+			// Don't receive more message from this link
+		} else if (
+				newLevel < this.level
+				|| (newLevel.equals(this.level) && newId <= this.id)
+			) {
+			// Discard message
+		} else {
+			// Send ACK back
+			MessageRMI ackMessage = new Message(this.id, MessageType.ACK, newLevel, newId);
+			this.sendMessage(ackMessage, link);
+
+			// We just got killed
+			this.isKilled = true;
+		}
 	}
 	
 }
