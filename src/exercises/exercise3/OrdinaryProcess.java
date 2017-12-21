@@ -42,7 +42,7 @@ public class OrdinaryProcess extends Process {
 				assert true;
 				break;
 			case -1:
-				// (level’,id’) > (level,owner_id
+				// (level’,id’) > (level,owner_id)
 
 				// Set potential father
 				this.potentialFather = message.getSenderId();
@@ -62,9 +62,17 @@ public class OrdinaryProcess extends Process {
 				}
 				
 				sendMessage(newMessage, this.father);
+				
+				// Report captured
+				if (!Exercise3Report.capturedTimes.containsKey(this.id)) {
+					Exercise3Report.capturedTimes.put(this.id, 0);
+				}
+				int actual = Exercise3Report.capturedTimes.get(this.id);
+				actual++;
+				Exercise3Report.capturedTimes.put(this.id, actual);
 				break;
 			default:
-				// (level’,id’) = (level,owner_id
+				// (level’,id’) = (level,owner_id)
 
 				// Set new father
 				this.father = this.potentialFather;

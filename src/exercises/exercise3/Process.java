@@ -109,10 +109,24 @@ public abstract class Process extends UnicastRemoteObject implements ProcessRMI 
 			try {
 				// Random delay
 				int ms = new Random().nextInt((2000 - 500) + 1) + 500;
-				Thread.sleep(ms);
+				//Thread.sleep(ms);
 
 				// Debug
 				System.out.println("[" + this.id + "] Sending " + message.getType() + " to [" + procId + "]");
+				
+				switch (message.getType()) {
+					case CAPTURE:
+						Exercise3Report.captureMessages++;
+						break;
+					case KILL:
+						Exercise3Report.killedMessages++;
+						break;
+					case ACK:
+						Exercise3Report.ackMessages++;
+						break;
+					default:
+						break;
+				}
 				
 				// Send message
 				ProcessRMI process = (ProcessRMI) this.registry.lookup("Process-" + procId);

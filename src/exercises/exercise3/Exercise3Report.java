@@ -2,6 +2,8 @@ package exercises.exercise3;
 
 import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -9,6 +11,13 @@ import java.util.logging.Logger;
  * Class to execute multiple process in the same JVM.
  */
 public final class Exercise3Report {
+	
+	// Report stadistics
+	public static volatile int captureMessages;
+	public static volatile int killedMessages;
+	public static volatile int ackMessages;
+	public static volatile int maxLevel = 1;
+	public static volatile Map<Integer, Integer> capturedTimes = new HashMap<>();
 	
 	private Exercise3Report() {
 		throw new RuntimeException("No supported");
@@ -22,26 +31,31 @@ public final class Exercise3Report {
 	 * @throws java.rmi.AlreadyBoundException 
 	 */
 	public static void main(String[] args) throws InterruptedException, RemoteException, AlreadyBoundException {
-		int numProcesses = Integer.parseInt(args[0]);
+		int numOrdinary = Integer.parseInt(args[0]);
+		int numCandidates = Integer.parseInt(args[1]);
+		int numProcesses = numCandidates + numOrdinary;
 		
 		// Setup registry
 		String[] registryParams = {
-				args[0],
-				"-1"
+				String.valueOf(numProcesses),
+				"-1",
+				String.valueOf(numOrdinary),
+				String.valueOf(numCandidates)
 		};
 		Exercise3.main(registryParams);
 		
+		// Start the rest of processes
 		Thread[] threads = new Thread[numProcesses];
 		for (int i = 0; i < numProcesses; i++) {
-			
-			final int totalProcesses = numProcesses;
 			final int procId = i;
 			
 			threads[i] = new Thread(() -> {
 				try {
 					String[] params = {
-						String.valueOf(totalProcesses),
-						String.valueOf(procId)
+						String.valueOf(numProcesses),
+						String.valueOf(procId),
+						String.valueOf(numOrdinary),
+						String.valueOf(numCandidates)
 					};
 					
 					Exercise3 exercise3 = new Exercise3();

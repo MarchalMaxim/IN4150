@@ -127,8 +127,18 @@ public class Exercise3 {
 		
 		// Run each proccess
 		final Process process;
-		if (procId == 2 || procId == 3) process = new CandidateProcess(HOST, PORT, procId, numProcesses);
-		else process = new OrdinaryProcess(HOST, PORT, procId, numProcesses);
+		
+		if (args.length >= 4) {
+			// Don't change these preferences
+			int numOrdinary = Integer.parseInt(args[2]);
+			int numCandidate = Integer.parseInt(args[3]);
+			if (procId < numOrdinary) process = new OrdinaryProcess(HOST, PORT, procId, numProcesses);
+			else process = new CandidateProcess(HOST, PORT, procId, numProcesses);
+		} else {
+			// Set here your preferences
+			if (procId == 2 || procId == 3) process = new CandidateProcess(HOST, PORT, procId, numProcesses);
+			else process = new OrdinaryProcess(HOST, PORT, procId, numProcesses);
+		}
 		
 		reg.bind("Process-" + procId, process);
 		Thread thread = new Thread(() -> {

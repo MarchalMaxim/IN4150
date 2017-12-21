@@ -43,6 +43,14 @@ public class CandidateProcess extends Process {
 		// If we are not killed, we are elected
 		if (!this.isKilled) {
 			System.out.println("[" + this.id + "] IS ELECTED!!");
+			
+			// Show report
+			System.out.println("-------------------------------");
+			System.out.println("Num. captures: " + Exercise3Report.captureMessages);
+			System.out.println("Num. kills: " + Exercise3Report.killedMessages);
+			System.out.println("Num. acks: " + Exercise3Report.ackMessages);
+			System.out.println("Max level: " + Exercise3Report.maxLevel);
+			//System.out.println("Num. captures: ");
 		}
 		
 	}
@@ -64,8 +72,11 @@ public class CandidateProcess extends Process {
 			// Recieved an ACK message
 			this.level++;
 			this.untraversed.remove(link);
+			
+			// Report level
+			Exercise3Report.maxLevel = Math.max(Exercise3Report.maxLevel, this.level);
 
-			System.out.println("[" + this.id + "] GOT " + message.getSenderId() + " process");
+			System.out.println("[" + this.id + "] CAPTURED process [" + message.getSenderId() + "]");
 			
 			// Don't receive more message from this link
 		} else if (
@@ -78,6 +89,8 @@ public class CandidateProcess extends Process {
 			MessageRMI ackMessage = new Message(this.id, MessageType.ACK, newLevel, newId);
 			this.sendMessage(ackMessage, link);
 
+			System.out.println("[" + this.id + "] was KILLED");
+			
 			// We just got killed
 			this.isKilled = true;
 		}
